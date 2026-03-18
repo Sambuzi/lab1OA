@@ -1,95 +1,96 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-#from statsmodels.graphics.gofplots import qqplot
 from scipy.stats import shapiro
 
-def average(df):
-    return np.mean(df)
 
-def std(df):
-    return np.std(df)
+# ---- Funzioni statistiche ----
+def average(data):
+    return np.mean(data)
 
-def median(df):
-    return np.median(df)
+def std(data):
+    return np.std(data)
 
-def IQR(df):
-    quantiles = df.quantile([0.25, 0.5, 0.75])
-    return quantiles[0.75] - quantiles[0.25]
+def median(data):
+    return np.median(data)
 
-def outlier1(name, data, avg, std):
-    print(f"{name} - {name}_avg > 1.5 * {name}_std")
-    return np.array(data[np.abs(data - avg) > 1.5 * std])
+def IQR(data):
+    q1, q2, q3 = data.quantile([0.25, 0.5, 0.75])
+    return q3 - q1
 
-def outlier2(name, data, median, iqr):
-    print(f"{name} - {name}_median > 1.5 * {name}_iqr")
-    return np.array(data[np.abs(data - median) > 1.5 * iqr])
 
-def null_hypothesis(name, df, avg, std, median, iqr):
-    stat, p = shapiro(df)
-    if(p > 0.05):
-        print(f'{name} Normal (not refusing Null Hypothesis)')
-        # Usare std per calcolare outlier
-        print('std-calculated outliers')
-        print(outlier1(name, df, avg, std))
+# ---- Funzioni per outlier ----
+def outliers_std(name, data, avg, std_val):
+    print(f"{name} - metodo STD")
+    return np.array(data[np.abs(data - avg) > 1.5 * std_val])
 
+def outliers_iqr(name, data, med, iqr_val):
+    print(f"{name} - metodo IQR")
+    return np.array(data[np.abs(data - med) > 1.5 * iqr_val])
+
+
+# ---- Test di normalità ----
+def check_distribution(name, data, avg, std_val, med, iqr_val):
+    stat, p = shapiro(data)
+
+    # Se p-value > 0.05 i dati sono considerati normali
+    if p > 0.05:
+        print(f"{name}: distribuzione normale")
+        print("Outlier con deviazione standard:")
+        print(outliers_std(name, data, avg, std_val))
     else:
-        print(f'{name} Non normal (refusing Null Hypothesis)')
-        # Usare iqr per calculare outlier
-        print('iqr-calculated outliers')
-        print(outlier2(name, df, median, iqr))
+        print(f"{name}: distribuzione NON normale")
+        print("Outlier con IQR:")
+        print(outliers_iqr(name, data, med, iqr_val))
 
 
+# ---- Funzione per analizzare una colonna ----
+def analyze_column(df, column_name):
+    data = df[column_name].dropna()
+
+    print(f"\n----- {column_name} -----")
+
+    avg = average(data)
+    std_val = std(data)
+    med = median(data)
+    iqr_val = IQR(data)
+
+    print(f"avg: {avg}")
+    print(f"std: {std_val}")
+    print(f"median: {med}")
+    print(f"iqr: {iqr_val}")
+
+    return data, avg, std_val, med, iqr_val
+
+
+# ---- MAIN ----
 if __name__ == "__main__":
     df = pd.read_csv("./traffico16.csv")
+
     month1 = 'ago1'
     month2 = 'ago2'
 
-    df_month1 = df[month1].dropna()
-    print(f"-----{month1}-----")
-    month1_average = average(df_month1)
-    print(f"avg: {month1_average}")
-    month1_std = std(df_month1)
-    print(f"std: {month1_std}")
-    month1_median = median(df_month1)
-    print(f"median: {month1_median}")
-    month1_iqr = IQR(df_month1)
-    print(f"iqr: {month1_iqr}")
+    # Analisi delle due colonne
+    data1, avg1, std1, med1, iqr1 = analyze_column(df, month1)
+    data2, avg2, std2, med2, iqr2 = analyze_column(df, month2)
 
-    print(f"-----{month2}-----")
-    df_month2 = df[month2].dropna()
-    month2_average = average(df_month2)
-    print(f"avg: {month2_average}")
-    month2_std = std(df_month2)
-    print(f"std: {month2_std}")
-    month2_median = median(df_month2)
-    print(f"median: {month2_median}")
-    month2_iqr = IQR(df_month2)
-    print(f"iqr: {month2_iqr}")
+    print("\n----- Outliers (entrambi i metodi) -----")
 
-    print("-----Outliers-----")
-    month1_es1 = outlier1(month1, df_month1, month1_average, month1_std)
-    print(month1_es1)
-    month1_es2 = outlier2(month1, df_month1, month1_median, month1_iqr)
-    print(month1_es2)
-    print("")
-    month2_es1 = outlier1(month2, df_month2, month2_average, month2_std)
-    print(month2_es1)
-    month2_es2 = outlier2(month2, df_month2, month2_median, month2_iqr)
-    print(month2_es2)
+    print(outliers_std(month1, data1, avg1, std1))
+    print(outliers_iqr(month1, data1, med1, iqr1))
 
+    print(outliers_std(month2, data2, avg2, std2))
+    print(outliers_iqr(month2, data2, med2, iqr2))
+
+    # Boxplot per i mesi ago1 e ago2
     plt.figure()
-    plt.title(f"Boxplot {month1} e {month2}")
-    df[[month1,month2]].boxplot()
+    plt.title(f"Boxplot per mesi {month1} e {month2}")
+    df[[month1, month2]].boxplot()
 
+    print("\n----- Test di normalità -----")
 
-    print("-----Normal Distribution and outliers-----")
-
-    #qqplot(df_month1.sort_values(), line='q')
-    #qqplot(df_month2.sort_values(), line='q')
-
-    null_hypothesis(month1, df_month1, month1_average, month1_std, month1_median, month1_iqr)
+    check_distribution(month1, data1, avg1, std1, med1, iqr1)
     print("")
-    null_hypothesis(month2, df_month2, month2_average, month2_std, month2_median, month2_iqr)
+    check_distribution(month2, data2, avg2, std2, med2, iqr2)
 
     plt.show()
